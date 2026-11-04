@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RutaYa</string>
+    <string name="app_tagline">Movilidad Urbana • Chiclayo</string>
+
+    <string name="welcome_title">¡Hola! ¿A dónde vas hoy?</string>
+    <string name="welcome_subtitle">Planifica tu viaje en transporte público</string>
+
+    <string name="origin_label">Punto de partida</string>
+    <string name="origin_hint">Mi ubicación actual</string>
+    <string name="location_action_current">Obtener ubicación actual</string>
+    <string name="location_status_requesting_permission">Solicitando permiso de ubicación…</string>
+    <string name="location_status_searching">Buscando la ubicación del dispositivo…</string>
+    <string name="location_status_success">Ubicación obtenida: %1$s, %2$s. Pulsa «Buscar paraderos cercanos» o escribe el origen manualmente.</string>
+    <string name="location_status_permission_denied">Permiso de ubicación denegado. Puedes volver a intentarlo o escribir el origen manualmente.</string>
+    <string name="location_status_disabled">La ubicación está desactivada. Actívala en ajustes o escribe el origen manualmente.</string>
+    <string name="location_status_settings_enabled">Ubicación activada. Pulsa «Reintentar ubicación» para obtener las coordenadas.</string>
+    <string name="location_status_error">No se pudo obtener la ubicación. Intenta de nuevo o escribe el origen manualmente.</string>
+    <string name="location_status_services_unavailable">Los servicios de ubicación no están disponibles en este dispositivo. Puedes escribir el origen manualmente.</string>
+    <string name="location_retry">Reintentar ubicación</string>
+    <string name="location_open_settings">Abrir ajustes de ubicación</string>
+    <string name="location_search_requires_stop">Las coordenadas ya se obtuvieron, pero la búsqueda actual requiere un nombre de paradero. Escribe el origen manualmente.</string>
+    <string name="nearby_stops_action">Buscar paraderos cercanos</string>
+    <string name="nearby_stops_title">Paraderos cercanos (radio de 1 km)</string>
+    <string name="nearby_stops_searching_location">Obteniendo la ubicación actual…</string>
+    <string name="nearby_stops_searching_api">Consultando paraderos cercanos…</string>
+    <string name="nearby_stops_empty">No hay paraderos registrados con coordenadas en esa zona.</string>
+    <string name="nearby_stops_retry">Reintentar búsqueda</string>
+    <string name="nearby_stops_distance">%1$s · %2$d m</string>
+    <string name="map_open_action">Abrir mapa</string>
+    <string name="map_title">Mapa de Chiclayo</string>
+    <string name="map_accessibility">Mapa interactivo de OpenStreetMap</string>
+    <string name="map_back">Volver</string>
+    <string name="map_location_action">Mi ubicación</string>
+    <string name="map_location_open_settings">Activar ubicación</string>
+    <string name="map_location_app_settings">Abrir ajustes de la aplicación</string>
+    <string name="map_center_status">Vista inicial aproximada del centro de Chiclayo; no representa tu GPS ni un paradero.</string>
+    <string name="map_location_permission_requesting">Solicitando permiso de ubicación…</string>
+    <string name="map_location_searching">Buscando tu ubicación actual…</string>
+    <string name="map_location_permission_denied">Permiso de ubicación denegado. Puedes volver a intentarlo.</string>
+    <string name="map_location_permission_settings">El permiso está bloqueado. Actívalo en los ajustes de RutaYa.</string>
+    <string name="map_location_app_settings_error">No se pudieron abrir los ajustes de RutaYa.</string>
+    <string name="map_location_disabled">La ubicación está desactivada. Actívala para centrar el mapa en tu posición.</string>
+    <string name="map_location_unavailable">No hay una ubicación actual o reciente disponible. Puedes volver a intentarlo.</string>
+    <string name="map_location_marker_title">Tu ubicación actual</string>
+    <string name="map_location_found">Mostrando tu posición actual del dispositivo.</string>
+    <string name="map_location_services_disabled">Activa la ubicación para mostrar tu posición. El mapa sigue disponible.</string>
+    <string name="map_location_services_unavailable">Google Play Services no está disponible. Actualízalo o inténtalo en otro dispositivo.</string>
+    <string name="map_location_settings_enabled">Ubicación activada. Pulsa «Mi ubicación» para volver a intentarlo.</string>
+    <string name="map_selection_start_action">Seleccionar paradero</string>
+    <string name="map_selection_cancel_action">Cancelar selección</string>
+    <string name="map_selection_copy_action">Copiar</string>
+    <string name="map_selection_prompt">Modo de selección manual: toca el punto del paradero en el mapa. No es tu ubicación GPS.</string>
+    <string name="map_selection_updated">Punto seleccionado manualmente; no corresponde al marcador GPS.</string>
+    <string name="map_selection_cancelled">Selección cancelada. No se guardó ningún punto.</string>
+    <string name="map_selection_marker_title">Punto seleccionado manualmente</string>
+    <string name="map_selection_marker_description">Este marcador temporal no representa la ubicación GPS.</string>
+    <string name="map_selection_coordinates_format">Selección manual (no GPS)\nLatitud: %1$s\nLongitud: %2$s</string>
+    <string name="map_selection_clip_label">Coordenadas del paradero (selección manual)</string>
+    <string name="map_selection_copied">Coordenadas copiadas al portapapeles.</string>
+    <string name="map_selection_copy_error">No se pudieron copiar las coordenadas.</string>
+    <string name="map_stops_loading">Buscando paraderos geolocalizados dentro de 10 km del centro visual inicial de Chiclayo…</string>
+    <string name="map_stops_empty">No hay paraderos registrados con coordenadas en el área inicial del mapa.</string>
+    <string name="map_stops_loaded">Paraderos registrados en el área inicial: %1$d</string>
+    <string name="map_stops_error">No se pudieron cargar los paraderos. Comprueba la conexión e inténtalo de nuevo.</string>
+    <string name="map_stops_network_permission_requesting">Solicitando acceso a la red local para cargar paraderos…</string>
+    <string name="map_stops_network_denied">Permiso de red local denegado. Concédelo para cargar los paraderos.</string>
+    <string name="map_stops_retry">Reintentar</string>
+    <string name="map_stop_backend_marker">Paradero registrado en RutaYa; no implica que sea una ruta oficial o verificada.</string>
+    <string name="map_osm_attribution">© OpenStreetMap contributors</string>
+    <string name="destination_label">Destino final</string>
+    <string name="destination_hint">Ingresa tu destino en Chiclayo</string>
+
+    <string name="btn_search_routes">Buscar Rutas</string>
+    <string name="swap_locations_desc">Intercambiar origen y destino</string>
+
+    <string name="quick_access_title">Accesos Rápidos</string>
+
+    <string name="feature_favorites_title">Favoritos</string>
+    <string name="feature_favorites_desc">Casa, trabajo o universidad</string>
+
+    <string name="feature_safe_trip_title">Viaje Seguro</string>
+    <string name="feature_safe_trip_desc">Comparte tu ruta en tiempo real</string>
+
+    <string name="feature_history_title">Historial</string>
+    <string name="feature_history_desc">Revisa tus viajes anteriores</string>
+
+    <string name="popular_routes_title">Rutas populares en Chiclayo</string>
+
+    <string name="route_1_title">USS ↔ Centro Chiclayo</string>
+    <string name="route_1_subtitle">Combi / Colectivo • 20 – 25 min • S/. 2.00</string>
+
+    <string name="route_2_title">Real Plaza ↔ Pimentel</string>
+    <string name="route_2_subtitle">Línea Pimentel • 30 – 35 min • S/. 2.50</string>
+
+    <string name="chip_uss">Univ. Señor de Sipán</string>
+    <string name="chip_real_plaza">Real Plaza</string>
+    <string name="chip_parque">Parque Principal</string>
+    <string name="chip_pimentel">Pimentel</string>
+    <string name="chip_usat">USAT</string>
+
+    <string name="toast_searching">Buscando las mejores rutas de transporte&#8230;</string>
+    <string name="toast_feature_coming_soon">Próximamente disponible en RutaYa</string>
+    <string name="toast_swapped">Origen y destino intercambiados</string>
+
+    <!-- Results Screen -->
+    <string name="results_title">Rutas encontradas</string>
+    <string name="results_disclaimer">Rutas DEMO del servidor • No son recorridos oficiales ni verificados</string>
+    <string name="badge_fastest">Más rápida</string>
+    <string name="badge_cheapest">Más económica</string>
+    <string name="badge_least_walk">Menos caminata</string>
+    <string name="btn_select_route">Ver detalle de ruta</string>
+
+    <!-- Empty State -->
+    <string name="empty_routes_title">No encontramos rutas disponibles</string>
+    <string name="empty_routes_message">Asegúrate de ingresar un origen y un destino distintos en Chiclayo (ej. Parque Principal a Univ. Señor de Sipán).</string>
+    <string name="empty_routes_api_message">No hay una ruta activa cuyos paraderos conecten esos puntos en ese orden. Usa los nombres de paradero que aparecen en el backend DEMO.</string>
+    <string name="routes_connection_error_title">No se pudo conectar con el servidor</string>
+    <string name="local_network_permission_required">Android necesita el permiso «Red local» para consultar el backend. Concédelo y vuelve a intentarlo.</string>
+    <string name="btn_retry">Reintentar</string>
+    <string name="btn_return_search">Volver a buscar</string>
+
+    <!-- Route Detail Screen -->
+    <string name="detail_title">Detalle de la ruta</string>
+    <string name="detail_metrics_title">Resumen del viaje</string>
+    <string name="detail_steps_title">Recorrido y Paraderos</string>
+    <string name="detail_time_label">Tiempo estimado</string>
+    <string name="detail_time_vehicle_label">En vehículo</string>
+    <string name="detail_total_time_available">Total: %1$d min</string>
+    <string name="detail_total_time_unavailable">Total: Sin dato</string>
+    <string name="detail_cost_label">Costo estimado</string>
+    <string name="detail_walk_label">Distancia a pie</string>
+    <string name="detail_frequency_label">Frecuencia de servicio</string>
+    <string name="detail_btn_start_trip">Iniciar simulación de viaje</string>
+    <string name="detail_btn_favorite">Guardar en Favoritos</string>
+    <string name="detail_btn_remove_favorite">Quitar de Favoritos</string>
+    <string name="detail_demo_notice">Datos DEMO consultados desde MySQL. Son ejemplos ficticios, no rutas oficiales ni verificadas de Chiclayo.</string>
+    <string name="route_vehicle_time_available">Vehículo: %1$d min</string>
+    <string name="route_vehicle_time_unavailable">Vehículo: Sin dato</string>
+    <string name="route_total_time_available">Total: %1$d min</string>
+    <string name="route_total_time_unavailable">Total: Sin dato</string>
+    <string name="route_detail_loading">Cargando datos de la ruta desde el servidor…</string>
+    <string name="step_1_title">1. Punto de partida y caminata</string>
+    <string name="step_2_title">2. Abordaje y trayecto en vehículo</string>
+    <string name="step_3_title">3. Llegada a destino final</string>
+
+    <!-- Active Trip Screen -->
+    <string name="active_trip_title">Simulación de Viaje Activo</string>
+    <string name="active_trip_status_in_progress">VIAJE EN CURSO</string>
+    <string name="active_trip_status_finished">VIAJE FINALIZADO</string>
+    <string name="active_trip_btn_finish">Finalizar viaje</string>
+    <string name="active_trip_btn_home">Volver al inicio</string>
+    <string name="active_trip_btn_saved">Viaje finalizado y guardado</string>
+    <string name="active_trip_dialog_title">¿Finalizar viaje?</string>
+    <string name="active_trip_dialog_msg">¿Confirmas que has llegado a tu destino? El viaje se registrará localmente en tu historial.</string>
+    <string name="active_trip_vehicle_time_available">Vehículo: %1$d min</string>
+    <string name="active_trip_vehicle_time_unavailable">Vehículo: Sin dato</string>
+    <string name="active_trip_total_time_available">Total: %1$d min</string>
+    <string name="active_trip_total_time_unavailable">Total: Sin dato</string>
+
+    <string name="dialog_yes_finish">Finalizar viaje</string>
+    <string name="dialog_cancel">Cancelar</string>
+    <string name="active_trip_notice">Aviso de simulación: Esta es una simulación local de prueba. No utiliza posicionamiento GPS en tiempo real ni sensores del vehículo.</string>
+    <string name="toast_trip_saved">Viaje finalizado y registrado en el historial local</string>
+
+    <!-- Favorites Screen -->
+    <string name="favorites_title">Rutas Favoritas</string>
+    <string name="empty_favorites_title">No tienes rutas favoritas guardadas</string>
+    <string name="empty_favorites_message">Guarda tus rutas de transporte más utilizadas desde la pantalla de detalle para acceder a ellas rápidamente.</string>
+    <string name="favorites_read_error_title">No se pudieron leer los favoritos</string>
+    <string name="favorites_read_error_message">Los datos guardados se conservaron. Algunos registros están dañados o incompletos; vuelve a intentarlo más tarde.</string>
+    <string name="favorites_read_warning_subtitle">Algunos registros no se pudieron mostrar; los datos originales se conservaron.</string>
+    <string name="favorite_storage_error">No se pudo actualizar favoritos. Los datos guardados se conservaron.</string>
+    <string name="btn_search_from_favorites">Buscar nuevas rutas</string>
+    <string name="toast_fav_added">Ruta agregada a Favoritos</string>
+    <string name="toast_fav_removed">Ruta eliminada de Favoritos</string>
+</resources>
