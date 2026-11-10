@@ -61,7 +61,7 @@ fun toast(context: Context, message: String, long: Boolean = false) {
 fun formatCost(cost: Double): String =
     if (cost >= 0) String.format(Locale.getDefault(), "S/. %.2f", cost) else "Sin dato"
 
-/** Tarjeta blanca con borde fino, como las MaterialCardView del diseño original. */
+/** Tarjeta blanca con borde  fino, como las MaterialCardView del diseño original. */
 @Composable
 fun AppCard(
     modifier: Modifier = Modifier,
