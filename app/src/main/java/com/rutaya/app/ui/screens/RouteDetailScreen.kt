@@ -1,6 +1,7 @@
 package com.rutaya.app.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import com.rutaya.app.ui.theme.AccentText
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -202,7 +203,7 @@ fun RouteDetailScreen(
                 ) {
                     Column(Modifier.padding(12.dp)) {
                         if (state == DetailApiState.Loading) {
-                            CircularProgressIndicator(Modifier.size(32.dp), strokeWidth = 3.dp, color = PrimaryNavy)
+                            CircularProgressIndicator(Modifier.size(32.dp), strokeWidth = 3.dp, color = AccentText)
                         }
                         Text(
                             when (state) {
@@ -324,8 +325,8 @@ fun RouteDetailScreen(
                 onClick = { toggleFavorite() },
                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp).height(48.dp),
                 shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryNavy),
-                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = PrimaryNavy)
+                border = androidx.compose.foundation.BorderStroke(1.dp, AccentText),
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = AccentText)
             ) {
                 Icon(
                     painterResource(if (isFavorite) R.drawable.ic_star else R.drawable.ic_star_outline),

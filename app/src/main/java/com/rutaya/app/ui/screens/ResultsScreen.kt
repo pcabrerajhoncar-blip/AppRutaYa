@@ -1,6 +1,8 @@
 package com.rutaya.app.ui.screens
 
 import android.content.Context
+import com.rutaya.app.ui.theme.AccentText
+import com.rutaya.app.ui.theme.ButtonBg
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -136,7 +138,7 @@ fun ResultsScreen(
 
         when (val s = state) {
             ResultsState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(Modifier.size(48.dp), color = PrimaryNavy)
+                CircularProgressIndicator(Modifier.size(48.dp), color = AccentText)
             }
             is ResultsState.Loaded -> LazyColumn(
                 Modifier.fillMaxSize().padding(top = 8.dp),
@@ -189,7 +191,7 @@ private fun NavyButton(text: String, onClick: () -> Unit, modifier: Modifier = M
         onClick = onClick,
         modifier = modifier.height(50.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = PrimaryNavy, contentColor = Color.White),
+        colors = ButtonDefaults.buttonColors(containerColor = ButtonBg, contentColor = Color.White),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 24.dp)
     ) { Text(text, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
 }
@@ -266,8 +268,8 @@ fun RouteOptionCard(route: RouteOption, onClick: () -> Unit) {
                 onClick = onClick,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(44.dp),
                 shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryNavy),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryNavy)
+                border = androidx.compose.foundation.BorderStroke(1.dp, AccentText),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentText)
             ) { Text(stringResource(R.string.btn_select_route), fontSize = 13.sp, fontWeight = FontWeight.Bold) }
         }
     }

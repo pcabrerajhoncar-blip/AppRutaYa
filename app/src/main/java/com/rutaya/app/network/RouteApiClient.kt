@@ -26,13 +26,13 @@ import kotlin.coroutines.cancellation.CancellationException
 /** Resultado de una llamada a la API: éxito con datos, o error con mensaje listo para el usuario. */
 sealed interface ApiResult<out T> {
     data class Success<T>(val value: T) : ApiResult<T>
-    data class Error(val message: String) : ApiResult<Nothing>
+    data class Error(val message: String, val unauthorized: Boolean = false) : ApiResult<Nothing>
 }
 
 /** Cliente HTTP de la API de solo lectura de RutaYa. */
 object RouteApiClient {
 
-    const val BASE_URL = "http://192.168.1.37/rutaya_api/api/"
+    const val BASE_URL = ApiConfig.API
 
     private const val CONNECT_TIMEOUT_MS = 8_000
     private const val READ_TIMEOUT_MS = 10_000
@@ -59,6 +59,20 @@ object RouteApiClient {
     /** Rutas con paraderos y trazado (la línea de la ruta) para planificar y seguir viajes. */
     suspend fun getCircuitRoutes(): ApiResult<List<CircuitRoute>> =
         call { parseCircuitRoutes(requestJson("rutas/trazados")) }
+
+    /** Solo las rutas con un paradero a menos de [radiusM] metros del origen y otro del destino (filtra el servidor). */
+    suspend fun getNearbyCircuitRoutes(
+        origin: GeoPt,
+        destination: GeoPt,
+        radiusM: Int
+    ): ApiResult<List<CircuitRoute>> = call {
+        val path = "rutas/cercanas?origen_lat=" + String.format(Locale.US, "%.6f", origin.lat) +
+            "&origen_lng=" + String.format(Locale.US, "%.6f", origin.lng) +
+            "&destino_lat=" + String.format(Locale.US, "%.6f", destination.lat) +
+            "&destino_lng=" + String.format(Locale.US, "%.6f", destination.lng) +
+            "&radio=" + radiusM
+        parseCircuitRoutes(requestJson(path))
+    }
 
     private suspend fun <T> call(block: () -> T): ApiResult<T> = withContext(Dispatchers.IO) {
         try {
@@ -394,7 +408,7 @@ object RouteApiClient {
             try {
                 val json = JSONObject(body)
                 if (!json.optBoolean("success", false)) {
-                    throw ApiException("El servidor no pudo completar la consulta.")
+                    throw ApiException(json.optString("error", "").ifBlank { "El servidor no pudo completar la consulta." })
                 }
                 return json
             } catch (e: JSONException) {
@@ -402,7 +416,7 @@ object RouteApiClient {
             }
         } catch (e: IOException) {
             Log.e("RouteApiClient", "GET failed for $path", e)
-            throw ApiException("No se pudo conectar con RutaYa. Comprueba que Apache esté activo y vuelve a intentar.")
+            throw ApiException("No se pudo conectar con RutaYa. Comprueba que la API de RutaYa esté encendida y que tu celular esté en la misma red.")
         } finally {
             connection?.disconnect()
         }

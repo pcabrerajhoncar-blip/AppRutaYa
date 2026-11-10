@@ -1,6 +1,8 @@
 package com.rutaya.app.ui.screens
 
 import androidx.compose.foundation.Image
+import com.rutaya.app.ui.theme.AccentText
+import com.rutaya.app.ui.theme.ButtonBg
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -104,7 +106,7 @@ fun FavoritesScreen(
                     onClick = onSearchNew,
                     modifier = Modifier.padding(top = 24.dp).height(50.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryNavy, contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = ButtonBg, contentColor = Color.White),
                     contentPadding = PaddingValues(horizontal = 24.dp)
                 ) { Text(stringResource(R.string.btn_search_from_favorites), fontSize = 14.sp, fontWeight = FontWeight.Bold) }
             }
@@ -179,8 +181,8 @@ private fun FavoriteCard(fav: FavoriteRoute, onOpen: () -> Unit, onRemove: () ->
                 onClick = onOpen,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(44.dp),
                 shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryNavy),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryNavy)
+                border = androidx.compose.foundation.BorderStroke(1.dp, AccentText),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentText)
             ) { Text(stringResource(R.string.btn_select_route), fontSize = 13.sp, fontWeight = FontWeight.Bold) }
         }
     }

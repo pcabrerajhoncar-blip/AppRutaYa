@@ -1,6 +1,14 @@
 package com.rutaya.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,6 +39,13 @@ import com.rutaya.app.model.TripPlan
 import com.rutaya.app.network.ApiResult
 import com.rutaya.app.network.Place
 import com.rutaya.app.network.RouteApiClient
+import com.rutaya.app.network.Backend
+import com.rutaya.app.storage.AppSettings
+import com.rutaya.app.storage.Session
+import com.rutaya.app.ui.components.toast
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import com.rutaya.app.ui.components.AppCard
 import com.rutaya.app.ui.components.MapLine
 import com.rutaya.app.ui.components.MapPin
@@ -68,14 +83,14 @@ class PlanState {
     var plans by mutableStateOf<List<TripPlan>>(emptyList())
     var message by mutableStateOf<String?>(null)
 
+    /** true mientras se consultan al servidor las rutas cercanas al origen y al destino. */
+    var searching by mutableStateOf(false)
+
     suspend fun loadRoutes() {
         loading = true
         error = null
         when (val result = RouteApiClient.getCircuitRoutes()) {
-            is ApiResult.Success -> {
-                routes = result.value
-                if (result.value.isEmpty()) error = "El servidor no tiene rutas con trazado. Importa seed_ruta_circuito.sql."
-            }
+            is ApiResult.Success -> routes = result.value
             is ApiResult.Error -> error = result.message
         }
         loading = false
@@ -97,65 +112,158 @@ class PlanState {
         message = null
     }
 
-    /** Calcula los viajes posibles. Devuelve true si hay al menos uno. */
-    fun searchPlans(): Boolean {
+    /**
+     * Pide al servidor SOLO las rutas con paraderos cerca del origen y del destino (hasta [AppSettings.maxWalkM] m)
+     * y calcula los viajes posibles. Devuelve true si hay al menos uno.
+     */
+    suspend fun searchPlans(): Boolean {
         message = null
         val o = origin
         val d = destination
-        when {
-            routes.isEmpty() -> message = error ?: "Aún no se cargaron las rutas del servidor."
-            o == null -> message = "Primero indica tu ubicación de origen."
-            d == null -> message = "Indica tu destino: búscalo por nombre o elígelo en el mapa."
-            else -> {
-                plans = TripPlanner.plan(o, d, routes)
+        if (o == null) { message = "Primero indica tu ubicación de origen."; return false }
+        if (d == null) { message = "Indica tu destino: búscalo por nombre o elígelo en el mapa."; return false }
+        val maxWalk = AppSettings.maxWalkM
+        searching = true
+        plans = emptyList()
+        when (val result = RouteApiClient.getNearbyCircuitRoutes(o, d, (maxWalk / TripPlanner.WALK_DETOUR).toInt())) {
+            is ApiResult.Success -> {
+                routes = result.value
+                plans = TripPlanner.plan(o, d, result.value, maxWalk.toDouble())
                 if (plans.isEmpty()) {
-                    message = "Ninguna ruta tiene paraderos a menos de ${TripPlanner.MAX_WALK_M.toInt()} m de tu origen y de tu destino."
+                    message = if (result.value.isEmpty()) {
+                        "Ninguna ruta tiene paraderos a menos de $maxWalk m de tu origen y de tu destino."
+                    } else {
+                        "Hay rutas con paraderos cerca, pero ninguna te sirve en ese sentido o es mejor ir caminando. " +
+                            "Prueba otro origen/destino o aumenta la caminata en Configuración."
+                    }
                 }
             }
+            is ApiResult.Error -> message = result.message
         }
+        searching = false
         return plans.isNotEmpty()
     }
 }
 
-/** Mapa para elegir el destino tocando; se abre centrado en tu ubicación. */
+/**
+ * Elegir origen o destino moviendo el mapa: el marcador queda fijo en el centro de la pantalla y el punto
+ * elegido es el que queda bajo su base. Arriba del marcador se muestra la dirección de ese punto.
+ */
 @Composable
 fun PickPointScreen(state: PlanState, forOrigin: Boolean, onBack: () -> Unit, onDone: () -> Unit) {
-    var picked by remember { mutableStateOf(if (forOrigin) state.origin else state.destination) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val start = remember {
+        (if (forOrigin) state.origin else state.destination) ?: state.origin ?: GeoPt(-6.7714, -79.8409)
+    }
+    var center by remember { mutableStateOf(start) }
+    var address by remember { mutableStateOf<String?>(null) }
+    var target by remember { mutableStateOf(start) }
+    var targetKey by remember { mutableStateOf(0) }
 
-    val lines = emptyList<MapLine>()
+    // Cuando el mapa deja de moverse (0,6 s), se busca la dirección del punto central.
+    LaunchedEffect(center) {
+        address = null
+        kotlinx.coroutines.delay(600)
+        address = com.rutaya.app.network.PlaceSearch.reverse(center)
+    }
+
     val pins = ArrayList<MapPin>()
     if (!forOrigin) state.origin?.let { pins.add(MapPin(it, PinKind.ORIGIN, "Tu ubicación")) }
-    picked?.let { pins.add(MapPin(it, if (forOrigin) PinKind.ORIGIN else PinKind.DESTINATION, if (forOrigin) "Origen" else "Destino")) }
-    val center = state.origin?.let { listOf(it) }
+    val pinColor = if (forOrigin) com.rutaya.app.ui.theme.AccentGreen else androidx.compose.ui.graphics.Color(0xFFDC2626)
 
     Column(Modifier.fillMaxSize().background(BgScreen).systemBarsPadding()) {
-        ScreenHeader(if (forOrigin) "Elegir origen" else "Elegir destino", if (forOrigin) "Toca el mapa donde estás" else "Toca el mapa donde quieres llegar", onBack = onBack)
+        ScreenHeader(
+            if (forOrigin) "Elegir origen" else "Elegir destino",
+            "Mueve el mapa para ubicar el punto",
+            onBack = onBack
+        )
         Box(Modifier.weight(1f).fillMaxWidth()) {
             OsmMap(
                 modifier = Modifier.fillMaxSize(),
-                lines = lines, pins = pins,
-                fitPoints = center, fitKey = "pick",
-                onTap = { picked = it }
+                lines = emptyList(), pins = pins,
+                fitPoints = listOf(target), fitKey = targetKey,
+                onCenterChanged = { center = it }
             )
+
+            // Marcador fijo: su base queda exactamente en el centro del mapa.
+            Box(Modifier.align(Alignment.Center).size(0.dp)) {
+                Column(
+                    Modifier.wrapContentSize(align = Alignment.BottomCenter, unbounded = true),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Column(
+                        Modifier
+                            .widthIn(max = 260.dp)
+                            .background(PrimaryNavy, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            if (forOrigin) "Punto de origen" else "Punto de destino",
+                            color = androidx.compose.ui.graphics.Color(0xFFCBD5E1), fontSize = 11.sp
+                        )
+                        Text(
+                            address ?: "Buscando dirección…",
+                            color = androidx.compose.ui.graphics.Color.White, fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold, maxLines = 2
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        Modifier.size(44.dp)
+                            .background(com.rutaya.app.ui.theme.CardSurface, RoundedCornerShape(10.dp))
+                            .border(2.dp, pinColor, RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.material3.Icon(
+                            androidx.compose.ui.res.painterResource(com.rutaya.app.R.drawable.ic_location_pin),
+                            null, Modifier.size(26.dp), tint = pinColor
+                        )
+                    }
+                    Box(Modifier.width(3.dp).height(18.dp).background(pinColor))
+                }
+            }
+
+            // Botón "mi ubicación": centra el mapa donde estás.
+            androidx.compose.material3.FloatingActionButton(
+                onClick = {
+                    scope.launch {
+                        val loc = com.rutaya.app.location.Gps.currentLocation(context)
+                        if (loc == null) {
+                            toast(context, "No pude obtener tu ubicación. Revisa el permiso y el GPS.")
+                        } else {
+                            target = GeoPt(loc.latitude, loc.longitude)
+                            targetKey++
+                        }
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                containerColor = com.rutaya.app.ui.theme.CardSurface
+            ) {
+                androidx.compose.material3.Icon(
+                    androidx.compose.ui.res.painterResource(com.rutaya.app.R.drawable.ic_my_location),
+                    "Mi ubicación", Modifier.size(24.dp), tint = AccentBlue
+                )
+            }
         }
-        Column(Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color.White).padding(12.dp)) {
+        Column(Modifier.fillMaxWidth().background(com.rutaya.app.ui.theme.CardSurface).padding(12.dp)) {
             Text(
-                if (picked == null) "Aún no elegiste un punto." else if (forOrigin) "Origen elegido en el mapa ✓" else "Destino elegido en el mapa ✓",
-                color = TextSecondary, fontSize = 13.sp
+                address ?: "Buscando dirección…",
+                color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 2
             )
             PrimaryButton(
-                if (forOrigin) "Confirmar origen" else "Confirmar destino", enabled = picked != null, height = 48.dp,
+                if (forOrigin) "Confirmar origen" else "Confirmar destino",
+                enabled = address != null, height = 48.dp,
                 modifier = Modifier.padding(top = 8.dp),
                 onClick = {
-                    picked?.let {
-                        if (forOrigin) {
-                            state.chooseOrigin(it, "Origen elegido en el mapa")
-                        } else {
-                            state.chooseDestination(it, String.format(Locale.US, "Punto en el mapa (%.5f, %.5f)", it.lat, it.lng))
-                            state.query = ""
-                        }
-                        onDone()
+                    val label = address ?: return@PrimaryButton
+                    if (forOrigin) {
+                        state.chooseOrigin(center, label)
+                    } else {
+                        state.chooseDestination(center, label)
+                        state.query = label
                     }
+                    onDone()
                 }
             )
         }
@@ -164,7 +272,9 @@ fun PickPointScreen(state: PlanState, forOrigin: Boolean, onBack: () -> Unit, on
 
 /** Lista de rutas posibles para ir del origen al destino. */
 @Composable
-fun PlanResultsScreen(state: PlanState, onBack: () -> Unit, onSelect: (TripPlan) -> Unit) {
+fun PlanResultsScreen(state: PlanState, onBack: () -> Unit, onSelect: (TripPlan) -> Unit, onLogin: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().background(BgScreen).systemBarsPadding()) {
         ScreenHeader("Rutas disponibles", "Elige la que prefieras", onBack = onBack)
         if (state.plans.isEmpty()) {
@@ -175,18 +285,33 @@ fun PlanResultsScreen(state: PlanState, onBack: () -> Unit, onSelect: (TripPlan)
         }
         LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
-            items(state.plans) { plan -> PlanCard(plan, onClick = { onSelect(plan) }) }
+            items(state.plans) { plan ->
+                PlanCard(plan, onClick = { onSelect(plan) }, onFavorite = {
+                    if (!Session.isLoggedIn) {
+                        toast(context, "Inicia sesión para guardar rutas favoritas.")
+                        onLogin()
+                    } else {
+                        scope.launch {
+                            when (val r = Backend.favoritePlan(plan, state.originLabel, state.destinationLabel)) {
+                                is ApiResult.Success -> toast(context, "Guardada en favoritos ⭐")
+                                is ApiResult.Error -> toast(context, r.message, long = true)
+                            }
+                        }
+                    }
+                })
+            }
         }
     }
 }
 
 @Composable
-private fun PlanCard(plan: TripPlan, onClick: () -> Unit) {
+private fun PlanCard(plan: TripPlan, onClick: () -> Unit, onFavorite: () -> Unit) {
     AppCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), onClick = onClick) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(plan.routeName, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("~${plan.totalMinutes} min", color = PrimaryNavy, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text("~${plan.totalMinutes} min", color = com.rutaya.app.ui.theme.AccentText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                TextButton(onClick = onFavorite) { Text("☆", fontSize = 20.sp) }
             }
             Text(
                 plan.transportType + (plan.price?.let { String.format(Locale.getDefault(), " · S/. %.2f", it) } ?: "") +

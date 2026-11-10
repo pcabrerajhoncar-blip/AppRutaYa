@@ -1,6 +1,10 @@
 package com.rutaya.app.ui.screens
 
 import android.Manifest
+import com.rutaya.app.ui.theme.NoticeText
+import com.rutaya.app.ui.theme.NoticeBg
+import com.rutaya.app.ui.theme.ButtonBg
+import com.rutaya.app.ui.theme.AccentText
 import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -67,7 +71,22 @@ import com.rutaya.app.ui.theme.BgScreen
 import com.rutaya.app.ui.theme.PrimaryNavy
 import com.rutaya.app.ui.theme.TextPrimary
 import com.rutaya.app.ui.theme.TextSecondary
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import com.rutaya.app.model.TrustedContact
+import com.rutaya.app.network.ApiConfig
+import com.rutaya.app.network.ApiResult
+import com.rutaya.app.network.Backend
+import com.rutaya.app.notify.Notifier
+import com.rutaya.app.storage.AppSettings
+import com.rutaya.app.storage.Session
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -96,10 +115,14 @@ private fun fmtM(m: Double): String =
 fun LiveTripScreen(
     plan: TripPlan,
     sessionId: String,
+    originLabel: String,
+    destinationLabel: String,
     onBack: () -> Unit,
-    onGoHome: () -> Unit
+    onGoHome: () -> Unit,
+    onLogin: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     var simulate by rememberSaveable { mutableStateOf(false) }
     var phaseIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -113,6 +136,18 @@ fun LiveTripScreen(
     var follow by rememberSaveable { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
     val startTime = rememberSaveable { now() }
+
+    // ---- Compartir viaje, favorito y aviso de bajada
+    var shareToken by rememberSaveable { mutableStateOf<String?>(null) }
+    var shareUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    var sosSent by rememberSaveable { mutableStateOf(false) }
+    var showShare by remember { mutableStateOf(false) }
+    var showConsent by remember { mutableStateOf(false) }
+    var contacts by remember { mutableStateOf<List<TrustedContact>>(emptyList()) }
+    var shareMessage by remember { mutableStateOf<String?>(null) }
+    var sharing by remember { mutableStateOf(false) }
+    var alertShown by rememberSaveable { mutableStateOf(false) }
+    var favoriteSaved by rememberSaveable { mutableStateOf(false) }
 
     // ---- Recorridos de cada tramo
     val walkToStop = remember(plan) { PathWalker(listOf(plan.origin, plan.boarding.point)) }
@@ -216,6 +251,85 @@ fun LiveTripScreen(
     val nextStop = plan.rideStops.firstOrNull { it.distanceAlongM > rideProgressM + 5.0 }
     val stopsLeft = plan.rideStops.count { it.distanceAlongM > rideProgressM + 5.0 }
 
+    // ---- Aviso "bájate ya"
+    val getOffNow = phase == Phase.RIDING && AppSettings.alertEnabled &&
+        stopsLeft in 1..AppSettings.alertStopsBefore
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        if (AppSettings.alertEnabled && !Notifier.canNotify(context)) {
+            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+    LaunchedEffect(getOffNow) {
+        if (getOffNow && !alertShown) {
+            alertShown = true
+            if (AppSettings.vibrate) Notifier.vibrate(context)
+            Notifier.notifyGetOff(context, "¡Prepárate para bajar!", "Bájate en ${plan.alighting.name}.")
+        }
+    }
+
+    // ---- Mientras se comparte, se envía la ubicación cada ~8 segundos
+    val latestPosition = rememberUpdatedState(position)
+    val latestSos = rememberUpdatedState(sosSent)
+    LaunchedEffect(shareToken) {
+        val token = shareToken ?: return@LaunchedEffect
+        while (true) {
+            delay(8_000L)
+            Backend.sendLocation(token, latestPosition.value, latestSos.value)
+        }
+    }
+    // Si sales de la pantalla sin finalizar, se deja de compartir (se borra la ubicación).
+    val latestToken = rememberUpdatedState(shareToken)
+    DisposableEffect(Unit) {
+        onDispose {
+            val token = latestToken.value
+            if (token != null) CoroutineScope(Dispatchers.IO).launch { Backend.stopShare(token) }
+            Notifier.cancel(context)
+        }
+    }
+
+    val destText = destinationLabel.ifBlank { String.format(Locale.US, "Mi destino (%.5f, %.5f)", plan.destination.lat, plan.destination.lng) }
+
+    fun startSharing() {
+        if (sharing) return
+        sharing = true
+        shareMessage = null
+        scope.launch {
+            if (shareToken == null) {
+                when (val r = Backend.startShare(plan.routeName, destText, position)) {
+                    is ApiResult.Success -> { shareToken = r.value.token; shareUrl = r.value.url }
+                    is ApiResult.Error -> shareMessage = r.message
+                }
+            }
+            if (shareToken != null) {
+                when (val c = Backend.contacts()) {
+                    is ApiResult.Success -> contacts = c.value
+                    is ApiResult.Error -> shareMessage = c.message
+                }
+                showShare = true
+            } else {
+                toast(context, shareMessage ?: "No se pudo compartir el viaje.", long = true)
+            }
+            sharing = false
+        }
+    }
+
+    fun onShareClick() {
+        when {
+            !Session.isLoggedIn -> { toast(context, "Inicia sesión para compartir tu viaje con personas de confianza."); onLogin() }
+            !AppSettings.shareConsent -> showConsent = true
+            else -> startSharing()
+        }
+    }
+
+    fun sendSos() {
+        sosSent = true
+        val token = shareToken
+        if (token == null) { toast(context, "Primero comparte tu viaje para poder avisar a tus contactos."); return }
+        scope.launch { Backend.sendLocation(token, position, true) }
+        toast(context, "Aviso de ayuda enviado: tus contactos lo verán en el enlace.", long = true)
+    }
+
     // ---- Texto de la fase
     val title: String
     val detail: String
@@ -252,12 +366,17 @@ fun LiveTripScreen(
             plan.rideMinutes, plan.totalMinutes,
             plan.boarding.name, plan.boarding.order, plan.alighting.name, plan.alighting.order
         )
-        val originText = String.format(Locale.US, "Mi origen (%.5f, %.5f)", plan.origin.lat, plan.origin.lng)
-        val destText = String.format(Locale.US, "Mi destino (%.5f, %.5f)", plan.destination.lat, plan.destination.lng)
+        val originText = originLabel.ifBlank { String.format(Locale.US, "Mi origen (%.5f, %.5f)", plan.origin.lat, plan.origin.lng) }
         val record = TripRecord.fromRouteOption(sessionId, option, originText, destText, startTime, now(), "Finalizado")
         TripHistoryManager.saveCompletedTrip(context, record)
-        toast(context, "Viaje finalizado y guardado en tu historial.")
-        onGoHome()
+        Notifier.cancel(context)
+        val token = shareToken
+        scope.launch {
+            if (token != null) { Backend.stopShare(token); shareToken = null }
+            if (record != null && Session.isLoggedIn) Backend.saveTrip(record, plan.routeId)
+            toast(context, "Viaje finalizado y guardado en tu historial.")
+            onGoHome()
+        }
     }
 
     // ---- Qué se dibuja
@@ -312,6 +431,19 @@ fun LiveTripScreen(
                         modifier = Modifier.padding(start = 4.dp),
                         label = { Text("Seguirme", fontSize = 12.sp) }
                     )
+                    TextButton(onClick = {
+                        if (!Session.isLoggedIn) {
+                            toast(context, "Inicia sesión para guardar rutas favoritas.")
+                            onLogin()
+                        } else if (!favoriteSaved) {
+                            scope.launch {
+                                when (val r = Backend.favoritePlan(plan, originLabel, destinationLabel)) {
+                                    is ApiResult.Success -> { favoriteSaved = true; toast(context, "Guardada en favoritos ⭐") }
+                                    is ApiResult.Error -> toast(context, r.message, long = true)
+                                }
+                            }
+                        }
+                    }) { Text(if (favoriteSaved) "⭐" else "☆", fontSize = 20.sp) }
                 }
             }
         }
@@ -322,7 +454,7 @@ fun LiveTripScreen(
             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp), elevation = 10.dp
         ) {
             Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()).padding(14.dp)) {
-                Text(title, color = PrimaryNavy, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(title, color = AccentText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Text(detail, color = TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
                 if (!simulate && !hasPermission) {
                     Text(
@@ -360,15 +492,112 @@ fun LiveTripScreen(
                     else -> Unit
                 }
 
+                if (getOffNow) {
+                    AppCard(
+                        Modifier.fillMaxWidth().padding(top = 8.dp),
+                        containerColor = NoticeBg
+                    ) {
+                        Text(
+                            "🔔 ¡Prepárate para bajar! Tu paradero es ${plan.alighting.name} " +
+                                "(faltan $stopsLeft ${if (stopsLeft == 1) "parada" else "paradas"}).",
+                            color = NoticeText, fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold, modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                }
+
+                if (phase != Phase.ARRIVED) {
+                    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SecondaryButton(
+                            if (sharing) "Un momento…" else if (shareToken != null) "Compartiendo ✓" else "Compartir mi viaje",
+                            fontSize = 12, enabled = !sharing,
+                            onClick = { if (shareToken != null) startSharing() else onShareClick() },
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (shareToken != null) {
+                            SecondaryButton(
+                                "Dejar de compartir", fontSize = 12,
+                                onClick = {
+                                    val token = shareToken
+                                    shareToken = null
+                                    if (token != null) scope.launch { Backend.stopShare(token) }
+                                    toast(context, "Dejaste de compartir tu ubicación.")
+                                }
+                            )
+                        }
+                        SecondaryButton("🚨 SOS", fontSize = 12, onClick = { sendSos() })
+                    }
+                }
+
                 PrimaryButton(
                     "Finalizar viaje",
                     onClick = { if (phase == Phase.ARRIVED) finishTrip() else showConfirm = true },
                     height = 46.dp, icon = R.drawable.ic_check_circle,
-                    containerColor = if (phase == Phase.ARRIVED) AccentGreen else PrimaryNavy,
+                    containerColor = if (phase == Phase.ARRIVED) AccentGreen else ButtonBg,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
         }
+    }
+
+    if (showConsent) {
+        AlertDialog(
+            onDismissRequest = { showConsent = false },
+            title = { Text("Compartir tu ubicación") },
+            text = {
+                Text(
+                    "Si continúas, tu ubicación en tiempo real podrá verse en un enlace que tú envías a quien elijas, " +
+                        "solo mientras dure este viaje. Al terminar, se borra. Puedes dejar de compartir cuando quieras."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showConsent = false; AppSettings.acceptShareConsent(); startSharing() }) { Text("Acepto") }
+            },
+            dismissButton = { TextButton(onClick = { showConsent = false }) { Text("Cancelar") } }
+        )
+    }
+
+    if (showShare) {
+        val link = shareUrl ?: ""
+        val text = "Hola, estoy viajando en ${plan.routeName} con RutaYa. Sigue mi viaje en tiempo real aquí: $link"
+        AlertDialog(
+            onDismissRequest = { showShare = false },
+            title = { Text("Enviar mi viaje por WhatsApp") },
+            text = {
+                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                    if (contacts.isEmpty()) {
+                        Text("Aún no tienes personas de confianza. Agrégalas en la pestaña Seguridad, o envía el enlace a cualquiera:", fontSize = 13.sp)
+                    }
+                    for (c in contacts) {
+                        TextButton(onClick = {
+                            val number = if (c.phone.length == 9) "51${c.phone}" else c.phone
+                            try {
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$number?text=" + Uri.encode(text)))
+                                )
+                            } catch (e: ActivityNotFoundException) {
+                                toast(context, "No se pudo abrir WhatsApp.")
+                            }
+                        }) { Text("📲 ${c.name}", fontSize = 15.sp) }
+                    }
+                    TextButton(onClick = {
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                        context.startActivity(Intent.createChooser(send, "Compartir enlace"))
+                    }) { Text("🔗 Enviar el enlace a otra persona…", fontSize = 14.sp) }
+                    if (ApiConfig.SERVER.startsWith("http://192.168") || ApiConfig.SERVER.startsWith("http://10.")) {
+                        Text(
+                            "Nota: mientras pruebas en tu red local, el enlace solo abre dentro de tu mismo Wi‑Fi. " +
+                                "Funcionará para todos cuando la API esté en la nube.",
+                            fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showShare = false }) { Text("Listo") } }
+        )
     }
 
     if (showConfirm) {

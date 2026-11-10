@@ -1,30 +1,49 @@
 package com.rutaya.app.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 
-private val RutaYaColors = lightColorScheme(
-    primary = PrimaryNavy,
-    onPrimary = TextWhite,
-    secondary = AccentCyan,
-    tertiary = AccentBlue,
-    background = BgScreen,
-    onBackground = TextPrimary,
-    surface = CardSurface,
-    onSurface = TextPrimary,
-    surfaceVariant = InputSurface,
-    onSurfaceVariant = TextSecondary,
-    outline = DividerColor,
-    error = AccentOrange
-)
-
-/** Tema fijo claro con los colores de marca de RutaYa (sin colores dinámicos). */
+/** Tema de RutaYa: claro u oscuro según Configuración > Apariencia (o el celular). */
 @Composable
 fun RutaYaTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = RutaYaColors,
-        typography = Typography,
-        content = content
-    )
+    val system = isSystemInDarkTheme()
+    SideEffect { Pal.systemDark = system }
+    val dark = isDark
+
+    val scheme = if (dark) {
+        darkColorScheme(
+            primary = AccentBlue,
+            onPrimary = TextWhite,
+            secondary = AccentCyan,
+            tertiary = AccentBlue,
+            background = BgScreen,
+            onBackground = TextPrimary,
+            surface = CardSurface,
+            onSurface = TextPrimary,
+            surfaceVariant = InputSurface,
+            onSurfaceVariant = TextSecondary,
+            outline = DividerColor,
+            error = AccentOrange
+        )
+    } else {
+        lightColorScheme(
+            primary = PrimaryNavy,
+            onPrimary = TextWhite,
+            secondary = AccentCyan,
+            tertiary = AccentBlue,
+            background = BgScreen,
+            onBackground = TextPrimary,
+            surface = CardSurface,
+            onSurface = TextPrimary,
+            surfaceVariant = InputSurface,
+            onSurfaceVariant = TextSecondary,
+            outline = DividerColor,
+            error = AccentOrange
+        )
+    }
+    MaterialTheme(colorScheme = scheme, typography = Typography, content = content)
 }

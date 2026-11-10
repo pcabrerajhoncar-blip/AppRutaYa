@@ -59,4 +59,49 @@ object PlaceSearch {
             ApiResult.Error("No se pudo buscar el lugar. Revisa tu conexión a internet o elígelo en el mapa.")
         }
     }
+
+    /**
+     * Dirección corta de un punto del mapa (calle y número, o barrio). Si no hay internet o el servicio
+     * falla, devuelve las coordenadas para que el usuario pueda continuar igual.
+     */
+    suspend fun reverse(point: GeoPt): String = withContext(Dispatchers.IO) {
+        val fallback = String.format(Locale.US, "Punto en el mapa (%.5f, %.5f)", point.lat, point.lng)
+        try {
+            val url = String.format(
+                Locale.US,
+                "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat=%.6f&lon=%.6f",
+                point.lat, point.lng
+            )
+            val conn = URL(url).openConnection() as HttpURLConnection
+            try {
+                conn.connectTimeout = 6000
+                conn.readTimeout = 8000
+                conn.setRequestProperty("User-Agent", "RutaYa/1.0 (com.rutaya.app; proyecto academico)")
+                conn.setRequestProperty("Accept-Language", "es")
+                if (conn.responseCode !in 200..299) return@withContext fallback
+                val body = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                val json = org.json.JSONObject(body)
+                val a = json.optJSONObject("address")
+                if (a != null) {
+                    val road = a.optString("road").ifBlank { a.optString("pedestrian") }
+                        .ifBlank { a.optString("residential") }
+                    val number = a.optString("house_number")
+                    val area = a.optString("neighbourhood").ifBlank { a.optString("suburb") }
+                        .ifBlank { a.optString("city_district") }.ifBlank { a.optString("city") }
+                    val text = listOf(
+                        if (road.isNotBlank() && number.isNotBlank()) "$road $number" else road,
+                        area
+                    ).filter { it.isNotBlank() }.distinct().joinToString(", ")
+                    if (text.isNotBlank()) return@withContext text
+                }
+                json.optString("display_name").split(",").take(2).joinToString(",").trim().ifBlank { fallback }
+            } finally {
+                conn.disconnect()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            fallback
+        }
+    }
 }

@@ -63,4 +63,26 @@ object TripHistoryManager {
         }
         return list
     }
+
+    /** Borra un viaje del historial local. */
+    fun delete(context: Context?, tripId: String) {
+        if (context == null) return
+        try {
+            val source = JSONArray(raw(context))
+            val kept = JSONArray()
+            for (index in 0 until source.length()) {
+                val obj = source.getJSONObject(index)
+                if (tripId != obj.optString("id")) kept.put(obj)
+            }
+            context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                .edit().putString(KEY_TRIPS, kept.toString()).apply()
+        } catch (e: JSONException) {
+            // Se ignora igual que en el resto del archivo.
+        }
+    }
+
+    /** Vacía el historial local. */
+    fun clear(context: Context?) {
+        context?.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)?.edit()?.remove(KEY_TRIPS)?.apply()
+    }
 }

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
+    <!--
+      Desarrollo: se permite HTTP sin cifrar para hablar con la API en tu PC (red local).
+      Cuando la API esté en la nube con HTTPS puedes volver a poner cleartextTrafficPermitted="false".
+    -->
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

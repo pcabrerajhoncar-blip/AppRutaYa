@@ -12,7 +12,14 @@ import kotlin.math.roundToInt
 /** Calcula qué ruta tomar, dónde subir y dónde bajar. Todo se hace en el teléfono con los trazados del servidor. */
 object TripPlanner {
 
-    const val MAX_WALK_M = 1000.0
+    /** Caminata máxima por defecto (m). */
+    const val MAX_WALK_M = 500.0
+
+    /** Las calles no son línea recta: la caminata real es ~30 % mayor que la distancia en línea recta. */
+    const val WALK_DETOUR = 1.3
+
+    /** Caminar cansa más que ir sentado: se pesa 1,5 veces al elegir en qué paraderos subir y bajar. */
+    private const val WALK_PENALTY = 1.5
     const val WALK_M_PER_MIN = 80.0
     private const val DEFAULT_RIDE_M_PER_MIN = 250.0
     private const val DEFAULT_FREQUENCY_MIN = 10
@@ -31,10 +38,15 @@ object TripPlanner {
         return best
     }
 
-    fun plan(origin: GeoPt, destination: GeoPt, routes: List<CircuitRoute>): List<TripPlan> =
-        routes.mapNotNull { planForRoute(origin, destination, it) }.sortedBy { it.totalMinutes }
+    fun plan(
+        origin: GeoPt,
+        destination: GeoPt,
+        routes: List<CircuitRoute>,
+        maxWalkM: Double = MAX_WALK_M
+    ): List<TripPlan> =
+        routes.mapNotNull { planForRoute(origin, destination, it, maxWalkM) }.sortedBy { it.totalMinutes }
 
-    private fun planForRoute(origin: GeoPt, destination: GeoPt, route: CircuitRoute): TripPlan? {
+    private fun planForRoute(origin: GeoPt, destination: GeoPt, route: CircuitRoute, maxWalkM: Double): TripPlan? {
         val stops = route.stops.sortedBy { it.order }
         val path = route.path
         if (stops.size < 2 || path.size < 2) return null
@@ -53,11 +65,15 @@ object TripPlanner {
         var bestCost = Double.MAX_VALUE
         var bestRideM = 0.0
         for (b in 0 until n) {
-            if (walkTo[b] > MAX_WALK_M) continue
+            // la distancia a pie real (con las vueltas de las calles) no debe pasar del máximo elegido
+            if (walkTo[b] * WALK_DETOUR > maxWalkM) continue
             for (a in 0 until n) {
-                if (a == b || walkFrom[a] > MAX_WALK_M) continue
+                if (a == b || walkFrom[a] * WALK_DETOUR > maxWalkM) continue
                 val rideM = rideDistance(cum, stopVertex, b, a, loopLength, route.isCircular) ?: continue
-                val cost = (walkTo[b] + walkFrom[a]) / WALK_M_PER_MIN + rideMinutes(route, rideM, loopLength, stops, b, a)
+                // no vale la pena una ruta donde caminas más de lo que viajas en la combi
+                if ((walkTo[b] + walkFrom[a]) * WALK_DETOUR > rideM) continue
+                val walkMin = (walkTo[b] + walkFrom[a]) * WALK_DETOUR / WALK_M_PER_MIN
+                val cost = walkMin * WALK_PENALTY + rideMinutes(route, rideM, loopLength, stops, b, a)
                 if (cost < bestCost) {
                     bestCost = cost
                     bestB = b
@@ -83,6 +99,12 @@ object TripPlanner {
         }
 
         val rideMin = rideMinutes(route, bestRideM, loopLength, stops, bestB, bestA).roundToInt().coerceAtLeast(1)
+        // si llegar caminando directo es igual de rápido (o más), no tiene sentido proponer la combi
+        val directWalkMin = Geo.distance(origin, destination) * WALK_DETOUR / WALK_M_PER_MIN
+        val planMin = ceil((walkTo[bestB] + walkFrom[bestA]) * WALK_DETOUR / WALK_M_PER_MIN) +
+            (route.frequencyMin ?: DEFAULT_FREQUENCY_MIN) / 2 + rideMin
+        // (solo en trayectos cortos: de ~12 min caminando o menos)
+        if (directWalkMin <= 12.0 && planMin >= directWalkMin) return null
         return TripPlan(
             routeId = route.id,
             routeName = route.name,
@@ -99,7 +121,7 @@ object TripPlanner {
             rideStops = rideStops,
             rideDistanceM = rideCum.last(),
             stopsCount = count,
-            walkMinutes = ceil((walkTo[bestB] + walkFrom[bestA]) / WALK_M_PER_MIN).toInt(),
+            walkMinutes = ceil((walkTo[bestB] + walkFrom[bestA]) * WALK_DETOUR / WALK_M_PER_MIN).toInt(),
             waitMinutes = (route.frequencyMin ?: DEFAULT_FREQUENCY_MIN) / 2,
             rideMinutes = rideMin
         )

@@ -1,6 +1,8 @@
 package com.rutaya.app.ui.screens
 
 import android.Manifest
+import com.rutaya.app.ui.theme.AccentText
+import com.rutaya.app.ui.theme.CardSurface
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -633,7 +635,7 @@ fun MapScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 12.dp, bottom = 12.dp)
-                .background(Color.White)
+                .background(CardSurface)
                 .padding(horizontal = 8.dp, vertical = 5.dp)
         )
     }
@@ -654,7 +656,7 @@ private fun MapButton(text: String, icon: Int, enabled: Boolean, modifier: Modif
         modifier = modifier.height(44.dp),
         shape = RoundedCornerShape(12.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, DividerColor),
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = PrimaryNavy)
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = CardSurface, contentColor = AccentText)
     ) {
         androidx.compose.material3.Icon(
             painterResource(icon), null, Modifier.size(16.dp), tint = AccentCyan

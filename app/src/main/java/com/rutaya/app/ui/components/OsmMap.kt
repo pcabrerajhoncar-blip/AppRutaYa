@@ -23,6 +23,13 @@ import com.rutaya.app.R
 import com.rutaya.app.model.GeoPt
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
+import org.osmdroid.events.MapListener
+import org.osmdroid.events.ScrollEvent
+import org.osmdroid.events.ZoomEvent
+import org.osmdroid.views.overlay.TilesOverlay
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import com.rutaya.app.ui.theme.isDark
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
@@ -57,8 +64,11 @@ fun OsmMap(
     fitPoints: List<GeoPt>? = null,
     fitKey: Any? = null,
     followPoint: GeoPt? = null,
-    onTap: ((GeoPt) -> Unit)? = null
+    onTap: ((GeoPt) -> Unit)? = null,
+    /** Se llama cada vez que el centro del mapa cambia (al arrastrar o hacer zoom). */
+    onCenterChanged: ((GeoPt) -> Unit)? = null
 ) {
+    val centerCallback by rememberUpdatedState(onCenterChanged)
     val holder = remember { arrayOfNulls<MapView>(1) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -91,10 +101,29 @@ fun OsmMap(
                 setMultiTouchControls(true)
                 controller.setZoom(14.0)
                 controller.setCenter(CHICLAYO)
+                addMapListener(object : MapListener {
+                    override fun onScroll(event: ScrollEvent?): Boolean {
+                        centerCallback?.let { cb ->
+                            val c = mapCenter
+                            cb(GeoPt(c.latitude, c.longitude))
+                        }
+                        return false
+                    }
+
+                    override fun onZoom(event: ZoomEvent?): Boolean {
+                        centerCallback?.let { cb ->
+                            val c = mapCenter
+                            cb(GeoPt(c.latitude, c.longitude))
+                        }
+                        return false
+                    }
+                })
                 holder[0] = this
             }
         },
         update = { map ->
+            // Modo oscuro: invierte los colores de los mosaicos del mapa.
+            map.overlayManager.tilesOverlay.setColorFilter(if (isDark) TilesOverlay.INVERT_COLORS else null)
             render(map, lines, pins, onTap)
             if (followPoint != null) {
                 map.controller.animateTo(GeoPoint(followPoint.lat, followPoint.lng))

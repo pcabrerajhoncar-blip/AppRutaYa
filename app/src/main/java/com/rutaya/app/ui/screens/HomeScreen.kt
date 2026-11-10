@@ -1,5 +1,15 @@
 package com.rutaya.app.ui.screens
 
+import androidx.compose.foundation.horizontalScroll
+import com.rutaya.app.ui.theme.CardSurface
+import com.rutaya.app.ui.theme.AccentText
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.rutaya.app.network.Backend
+import com.rutaya.app.storage.Session
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -12,6 +22,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import com.rutaya.app.ui.theme.isDark
+import com.rutaya.app.ui.theme.GrayTint
+import com.rutaya.app.ui.theme.BlueTint
+import com.rutaya.app.ui.theme.OrangeTint
+import com.rutaya.app.ui.theme.BrandOrangeLight
+import com.rutaya.app.ui.theme.BrandOrange
+import androidx.compose.ui.text.withStyle
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -432,6 +450,8 @@ class HomeState(private val context: Context, private val scope: CoroutineScope)
 fun HomeScreen(
     planState: PlanState,
     onOpenFavorites: () -> Unit,
+    onOpenSecurity: () -> Unit,
+    onOpenHistory: () -> Unit,
     onPickOnMap: (forOrigin: Boolean) -> Unit,
     onPlansReady: () -> Unit
 ) {
@@ -467,34 +487,57 @@ fun HomeScreen(
         }
     }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(BgScreen)
-            .systemBarsPadding()
-    ) {
+    Box(Modifier.fillMaxSize().background(BgScreen)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Box(Modifier.fillMaxWidth()) {
-                Box(Modifier.fillMaxWidth().height(250.dp).background(HeaderBrush))
+                HeaderDecoration(Modifier.matchParentSize())
                 Column(Modifier.fillMaxWidth()) {
                     TopBar(onNotification = {
                         toast(context, "Notificaciones • " + context.getString(R.string.toast_feature_coming_soon))
                     })
                     Text(
-                        stringResource(R.string.welcome_title),
-                        color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp)
+                        Session.account?.let { "Hola, ${it.name.substringBefore(' ')} 👋" } ?: stringResource(R.string.welcome_title),
+                        color = TextPrimary, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp)
                     )
                     Text(
                         stringResource(R.string.welcome_subtitle),
-                        color = TextWhiteSecondary, fontSize = 13.sp,
-                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp)
+                        color = TextSecondary, fontSize = 16.sp,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 4.dp)
                     )
-                    PlannerCard(planState, onPickOnMap, onPlansReady)
-                    QuickAccess(state, onOpenFavorites)
-                    Spacer(Modifier.height(32.dp))
                 }
             }
+            PlannerCard(planState, onPickOnMap, onPlansReady)
+            SavedPlaceChips(planState)
+            QuickAccess(onOpenFavorites, onOpenSecurity, onOpenHistory)
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/** Decoración del encabezado: silueta de la catedral y una curva naranja (como en el boceto). */
+@Composable
+private fun HeaderDecoration(modifier: Modifier) {
+    Box(modifier) {
+        androidx.compose.material3.Icon(
+            painterResource(R.drawable.ic_skyline), null,
+            Modifier.align(Alignment.TopEnd).padding(top = 52.dp).size(width = 190.dp, height = 95.dp),
+            tint = AccentBlue.copy(alpha = if (isDark) 0.28f else 0.16f)
+        )
+        androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
+            val w = size.width
+            val h = size.height
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(w * 0.30f, h * 0.60f)
+                cubicTo(w * 0.52f, h * 0.38f, w * 0.72f, h * 0.80f, w * 1.0f, h * 0.62f)
+            }
+            drawPath(
+                path,
+                brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                    listOf(BrandOrange.copy(alpha = 0f), BrandOrange.copy(alpha = 0.55f), BrandOrangeLight.copy(alpha = 0.15f))
+                ),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 6.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            )
         }
     }
 }
@@ -502,19 +545,36 @@ fun HomeScreen(
 @Composable
 private fun TopBar(onNotification: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp),
+        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(painterResource(R.drawable.ic_rutaya_logo), stringResource(R.string.app_name), Modifier.size(36.dp))
+        Image(painterResource(R.drawable.ic_rutaya_logo), stringResource(R.string.app_name), Modifier.size(48.dp))
         Column(Modifier.weight(1f).padding(start = 10.dp)) {
-            Text(stringResource(R.string.app_name), color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Text(stringResource(R.string.app_tagline), color = TextWhiteSecondary, fontSize = 11.sp)
+            Text(
+                androidx.compose.ui.text.buildAnnotatedString {
+                    withStyle(androidx.compose.ui.text.SpanStyle(color = TextPrimary)) { append("Ruta") }
+                    withStyle(androidx.compose.ui.text.SpanStyle(color = BrandOrange)) { append("Ya") }
+                },
+                fontSize = 28.sp, fontWeight = FontWeight.ExtraBold
+            )
+            Text(stringResource(R.string.app_tagline), color = TextSecondary, fontSize = 12.sp)
         }
-        Box(
-            Modifier.size(48.dp).clip(CircleShape).background(CircleButton).clickable(onClick = onNotification),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(painterResource(R.drawable.ic_notifications), stringResource(R.string.app_name), Modifier.size(22.dp))
+        Box(contentAlignment = Alignment.TopEnd) {
+            Box(
+                Modifier.size(52.dp)
+                    .shadow(4.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(CardSurface)
+                    .border(1.dp, DividerColor, CircleShape)
+                    .clickable(onClick = onNotification),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.material3.Icon(
+                    painterResource(R.drawable.ic_notifications), stringResource(R.string.app_name),
+                    Modifier.size(24.dp), tint = TextPrimary
+                )
+            }
+            Box(Modifier.padding(top = 2.dp, end = 2.dp).size(12.dp).background(BrandOrange, CircleShape))
         }
     }
 }
@@ -702,11 +762,11 @@ private fun TripPlannerCard(
                 for (chip in chips) {
                     ElevatedAssistChip(
                         onClick = { state.selectChip(chip) },
-                        label = { Text(chip, color = PrimaryNavy, fontSize = 12.sp) },
+                        label = { Text(chip, color = AccentText, fontSize = 12.sp) },
                         leadingIcon = {
                             Icon(painterResource(R.drawable.ic_place), null, Modifier.size(16.dp), tint = AccentCyan)
                         },
-                        colors = AssistChipDefaults.elevatedAssistChipColors(containerColor = Color.White)
+                        colors = AssistChipDefaults.elevatedAssistChipColors(containerColor = CardSurface)
                     )
                 }
             }
@@ -748,30 +808,77 @@ private fun OutlinedActionButton(text: String, enabled: Boolean, onClick: () -> 
     )
 }
 
+/** Atajos a tus lugares guardados (Casa, Trabajo...): un toque y eliges si es tu origen o tu destino. */
 @Composable
-private fun QuickAccess(state: HomeState, onOpenFavorites: () -> Unit) {
+private fun SavedPlaceChips(planState: PlanState) {
+    val account = Session.account ?: return
+    var places by remember { mutableStateOf<List<com.rutaya.app.model.SavedPlace>>(emptyList()) }
+    var pending by remember { mutableStateOf<com.rutaya.app.model.SavedPlace?>(null) }
+    LaunchedEffect(account.id) {
+        val r = Backend.places()
+        if (r is com.rutaya.app.network.ApiResult.Success) places = r.value
+    }
+    if (places.isEmpty()) return
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        for (p in places) {
+            com.rutaya.app.ui.components.ChoiceChip(
+                (when (p.type) { "casa" -> "🏠 "; "trabajo" -> "💼 "; else -> "📌 " }) + p.name,
+                selected = planState.origin == p.point || planState.destination == p.point,
+                onClick = { pending = p }
+            )
+        }
+    }
+
+    pending?.let { place ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pending = null },
+            title = { Text("¿Usar «${place.name}» como…?") },
+            text = { Text("Elige si es el punto desde donde sales o a donde quieres llegar.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    planState.chooseDestination(place.point, place.name)
+                    planState.query = place.name
+                    pending = null
+                }) { Text("Destino") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    planState.chooseOrigin(place.point, place.name)
+                    pending = null
+                }) { Text("Origen") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun QuickAccess(onOpenFavorites: () -> Unit, onOpenSecurity: () -> Unit, onOpenHistory: () -> Unit) {
     SectionTitle(
         stringResource(R.string.quick_access_title),
         Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 24.dp)
     )
     Row(
         Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         QuickCard(
-            Modifier.weight(1f), R.drawable.ic_star, Color(0xFFFEF3C7),
+            Modifier.weight(1f), R.drawable.ic_star, OrangeTint, BrandOrange,
             stringResource(R.string.feature_favorites_title), stringResource(R.string.feature_favorites_desc),
             onOpenFavorites
         )
-        val safeTitle = stringResource(R.string.feature_safe_trip_title)
         QuickCard(
-            Modifier.weight(1f), R.drawable.ic_shield_check, AccentGreenLight,
-            safeTitle, stringResource(R.string.feature_safe_trip_desc)
-        ) { state.showFeatureToast(safeTitle) }
+            Modifier.weight(1f), R.drawable.ic_shield_check, BlueTint, AccentBlue,
+            stringResource(R.string.feature_safe_trip_title), stringResource(R.string.feature_safe_trip_desc),
+            onOpenSecurity
+        )
         QuickCard(
-            Modifier.weight(1f), R.drawable.ic_history, HistoryBg,
-            stringResource(R.string.feature_history_title), stringResource(R.string.feature_history_desc)
-        ) { state.showHistoryToast() }
+            Modifier.weight(1f), R.drawable.ic_history, GrayTint, TextSecondary,
+            stringResource(R.string.feature_history_title), stringResource(R.string.feature_history_desc),
+            onOpenHistory
+        )
     }
 }
 
@@ -779,21 +886,27 @@ private fun QuickAccess(state: HomeState, onOpenFavorites: () -> Unit) {
 private fun QuickCard(
     modifier: Modifier,
     icon: Int,
-    iconBackground: Color,
+    tint: Color,
+    iconColor: Color,
     title: String,
     description: String,
     onClick: () -> Unit
 ) {
-    AppCard(modifier = modifier, onClick = onClick) {
+    AppCard(modifier = modifier, containerColor = tint, borderColor = tint, onClick = onClick) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 12.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            IconBadge(icon, iconBackground, contentDescription = title)
+            Box(
+                Modifier.size(52.dp).clip(CircleShape).background(iconColor.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.material3.Icon(painterResource(icon), title, Modifier.size(26.dp), tint = iconColor)
+            }
             Text(
-                title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = 10.dp)
             )
             Text(
                 description, color = TextMuted, fontSize = 11.sp,

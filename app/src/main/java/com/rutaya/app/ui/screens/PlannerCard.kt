@@ -83,8 +83,7 @@ fun PlannerCard(state: PlanState, onPickOnMap: (forOrigin: Boolean) -> Unit, onP
         else state.message = context.getString(R.string.location_status_permission_denied)
     }
     val networkLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) scope.launch { state.loadRoutes() }
-        else state.error = context.getString(R.string.local_network_permission_required)
+        if (!granted) state.error = context.getString(R.string.local_network_permission_required)
     }
 
     fun requestLocation() {
@@ -95,10 +94,7 @@ fun PlannerCard(state: PlanState, onPickOnMap: (forOrigin: Boolean) -> Unit, onP
     }
 
     LaunchedEffect(Unit) {
-        if (state.routes.isEmpty()) {
-            if (LocalNetworkAccess.isGranted(context)) state.loadRoutes()
-            else networkLauncher.launch(LocalNetworkAccess.PERMISSION)
-        }
+        if (!LocalNetworkAccess.isGranted(context)) networkLauncher.launch(LocalNetworkAccess.PERMISSION)
         if (state.origin == null && Gps.hasPermission(context)) detectLocation()
     }
 
@@ -119,26 +115,26 @@ fun PlannerCard(state: PlanState, onPickOnMap: (forOrigin: Boolean) -> Unit, onP
 
     AppCard(
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 18.dp),
-        shape = RoundedCornerShape(20.dp), elevation = 8.dp
+        shape = RoundedCornerShape(28.dp), elevation = 6.dp
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(Modifier.fillMaxWidth()) {
                 // ---- Indicador vertical: punto verde, línea punteada, pin rojo
                 Column(Modifier.width(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Spacer(Modifier.height(20.dp))
-                    Box(Modifier.size(12.dp).background(AccentGreen, CircleShape))
+                    Box(Modifier.size(14.dp).background(com.rutaya.app.ui.theme.BrandOrange, CircleShape))
                     Spacer(Modifier.height(4.dp))
                     Box(Modifier.width(2.dp).height(42.dp).background(DividerColor))
                     Spacer(Modifier.height(4.dp))
-                    Icon(painterResource(R.drawable.ic_location_pin), null, Modifier.size(20.dp), tint = Color(0xFFDC2626))
+                    Icon(painterResource(R.drawable.ic_location_pin), null, Modifier.size(20.dp), tint = AccentBlue)
                 }
 
                 Column(Modifier.weight(1f).padding(start = 8.dp)) {
                     // ---- Origen
                     Row(
-                        Modifier.fillMaxWidth().height(52.dp)
-                            .background(InputSurface, RoundedCornerShape(12.dp))
-                            .border(1.dp, DividerColor, RoundedCornerShape(12.dp))
+                        Modifier.fillMaxWidth().height(56.dp)
+                            .background(InputSurface, RoundedCornerShape(20.dp))
+                            .border(1.dp, DividerColor, RoundedCornerShape(20.dp))
                             .padding(start = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -163,7 +159,7 @@ fun PlannerCard(state: PlanState, onPickOnMap: (forOrigin: Boolean) -> Unit, onP
                         onValueChange = { state.query = it },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(20.dp),
                         leadingIcon = {
                             Icon(painterResource(R.drawable.ic_search), null, Modifier.size(20.dp), tint = TextMuted)
                         },
@@ -205,32 +201,30 @@ fun PlannerCard(state: PlanState, onPickOnMap: (forOrigin: Boolean) -> Unit, onP
                 }
             } else if (state.destination != null) {
                 Text(
-                    "Destino: ${state.destinationLabel} ✓", color = AccentGreen, fontSize = 13.sp,
+                    "Destino: ${state.destinationLabel} ✓", color = com.rutaya.app.ui.theme.AccentText, fontSize = 13.sp,
                     fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)
                 )
             }
 
             // ---- Mensajes (una sola línea)
             val note = when {
-                state.loading -> "Cargando rutas del servidor…"
+                state.searching -> "Buscando rutas cercanas…"
                 state.message != null -> state.message
                 state.error != null -> state.error
                 else -> null
             }
             if (note != null) {
                 Text(
-                    note, color = if (state.loading) TextMuted else AccentOrange, fontSize = 12.sp,
+                    note, color = if (state.searching) TextMuted else AccentOrange, fontSize = 12.sp,
                     modifier = Modifier.padding(top = 10.dp)
                 )
-                if (state.error != null && !state.loading) {
-                    TextButton(onClick = { scope.launch { state.loadRoutes() } }) { Text("Reintentar", fontSize = 12.sp) }
-                }
             }
 
             PrimaryButton(
-                "Buscar rutas", height = 52.dp, icon = R.drawable.ic_search,
+                if (state.searching) "Buscando…" else "Buscar rutas", height = 58.dp, icon = R.drawable.ic_search,
+                enabled = !state.searching,
                 modifier = Modifier.padding(top = 14.dp),
-                onClick = { if (state.searchPlans()) onPlansReady() }
+                onClick = { scope.launch { if (state.searchPlans()) onPlansReady() } }
             )
 
             TextButton(

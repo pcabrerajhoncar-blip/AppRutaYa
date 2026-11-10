@@ -1,11 +1,16 @@
 package com.rutaya.app.ui.components
 
 import android.content.Context
+import com.rutaya.app.ui.theme.TextMuted
+import com.rutaya.app.ui.theme.AccentText
+import com.rutaya.app.ui.theme.ButtonBg
 import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,10 +65,10 @@ fun formatCost(cost: Double): String =
 @Composable
 fun AppCard(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp),
+    shape: Shape = RoundedCornerShape(22.dp),
     containerColor: Color = CardSurface,
     borderColor: Color = DividerColor,
-    elevation: Dp = 2.dp,
+    elevation: Dp = 3.dp,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -98,7 +103,7 @@ fun IconBadge(
     }
 }
 
-/** Cabecera azul marino con degradado, botón de volver, título y subtítulo. */
+/** Cabecera clara: botón de volver redondo, título y subtítulo (se adapta al modo oscuro). */
 @Composable
 fun ScreenHeader(
     title: String,
@@ -109,53 +114,69 @@ fun ScreenHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(HeaderBrush)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (onBack != null) {
             Box(
-                Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onBack),
+                Modifier.size(44.dp)
+                    .shadow(3.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(CardSurface)
+                    .border(1.dp, DividerColor, CircleShape)
+                    .clickable(onClick = onBack),
                 contentAlignment = Alignment.Center
             ) {
-                Image(painterResource(R.drawable.ic_arrow_back), "Volver", Modifier.size(24.dp))
+                androidx.compose.material3.Icon(
+                    painterResource(R.drawable.ic_arrow_back), "Volver", Modifier.size(22.dp), tint = TextPrimary
+                )
             }
             androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
         }
         Column(Modifier.weight(1f)) {
-            Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(title, color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
             if (subtitle != null) {
-                Text(subtitle, color = Color(0xFFE2E8F0), fontSize = 13.sp)
+                Text(subtitle, color = TextMuted, fontSize = 13.sp)
             }
         }
     }
 }
 
+/** Botón principal: degradado naranja (o un color sólido si se indica [containerColor]). */
 @Composable
 fun PrimaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    height: Dp = 54.dp,
+    height: Dp = 56.dp,
     @DrawableRes icon: Int? = null,
-    containerColor: Color = PrimaryNavy
+    containerColor: Color? = null
 ) {
+    val shape = RoundedCornerShape(20.dp)
+    val bg = when {
+        !enabled -> Modifier.background(Color(0xFF94A3B8), shape)
+        containerColor != null -> Modifier.background(containerColor, shape)
+        else -> Modifier.background(com.rutaya.app.ui.theme.BrandBrush, shape)
+    }
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.fillMaxWidth().height(height),
-        shape = RoundedCornerShape(14.dp),
+        modifier = modifier.fillMaxWidth().height(height)
+            .then(if (enabled) Modifier.shadow(6.dp, shape, ambientColor = com.rutaya.app.ui.theme.BrandOrange, spotColor = com.rutaya.app.ui.theme.BrandOrange) else Modifier)
+            .then(bg),
+        shape = shape,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor, contentColor = Color.White,
-            disabledContainerColor = Color(0xFF94A3B8), disabledContentColor = Color.White
+            containerColor = Color.Transparent, contentColor = Color.White,
+            disabledContainerColor = Color.Transparent, disabledContentColor = Color.White
         )
     ) {
         if (icon != null) {
-            androidx.compose.material3.Icon(painterResource(icon), null, Modifier.size(20.dp), tint = AccentCyan)
+            androidx.compose.material3.Icon(painterResource(icon), null, Modifier.size(22.dp), tint = Color.White)
             androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
         }
-        Text(text, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -167,7 +188,7 @@ fun SecondaryButton(
     @DrawableRes icon: Int? = null,
     enabled: Boolean = true,
     fontSize: Int = 14,
-    shape: Shape = RoundedCornerShape(12.dp)
+    shape: Shape = RoundedCornerShape(16.dp)
 ) {
     OutlinedButton(
         onClick = onClick,
@@ -175,10 +196,10 @@ fun SecondaryButton(
         modifier = modifier,
         shape = shape,
         border = BorderStroke(1.dp, DividerColor),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryNavy)
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentText)
     ) {
         if (icon != null) {
-            androidx.compose.material3.Icon(painterResource(icon), null, Modifier.size(16.dp), tint = AccentCyan)
+            androidx.compose.material3.Icon(painterResource(icon), null, Modifier.size(16.dp), tint = AccentText)
             androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
         }
         Text(text, fontSize = fontSize.sp)
